@@ -33,6 +33,27 @@ fi
 MOUNTED_DEVICE_PATH="$1"
 echo "マウントパス: $MOUNTED_DEVICE_PATH"
 
+# --- 検索対象パスの決定 ---
+SEARCH_PATH="$MOUNTED_DEVICE_PATH"
+if [ -n "$VOICE_FILES_SUBDIR" ]; then
+    SEARCH_PATH="${MOUNTED_DEVICE_PATH}/${VOICE_FILES_SUBDIR}"
+fi
+echo "検索対象パス: $SEARCH_PATH"
+
+# --- マウントポイントの準備待機 ---
+echo "マウントポイント準備待機中: $SEARCH_PATH"
+RETRY_COUNT=0
+MAX_RETRIES=30 # 最大30秒待機
+while [ ! -d "$SEARCH_PATH" ]; do
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "エラー: $SEARCH_PATH が $MAX_RETRIES 秒以内に利用可能になりませんでした。"
+        exit 1
+    fi
+    sleep 1
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+done
+echo "$SEARCH_PATH 準備完了。"
+
 # --- ディレクトリ作成 ---
 # AUDIO_DEST_DIR と MARKDOWN_OUTPUT_DIR が存在しない場合は作成
 # PROCESSED_LOG_FILE の親ディレクトリも作成
@@ -53,43 +74,75 @@ echo "処理済み記録ファイルを確認/作成しました: ${PROCESSED_LO
 # --- 処理済みファイルリストの読み込み ---
 PROCESSED_FILES=()
 if [ -f "$PROCESSED_LOG_FILE" ]; then
-    while IFS= read -r line;
-    do
-        processed_file_name=$(echo "$line" | jq -r 'try .source_audio catch ""')
-        if [ -n "$processed_file_name" ] && [ "$processed_file_name" != "null" ]; then
-            PROCESSED_FILES+=("$processed_file_name")
-        fi
-    done < "$PROCESSED_LOG_FILE"
+    # ファイルが空でないことを確認してからループを実行
+    if [ -s "$PROCESSED_LOG_FILE" ]; then
+        while IFS= read -r line;
+        do
+            processed_file_name=$(echo "$line" | jq -r 'try .source_audio catch ""')
+            if [ $? -ne 0 ]; then
+                echo "警告: jqの処理中にエラーが発生しました。対象行: $line" >&2
+                # jqエラーの場合はその行をスキップ
+                continue
+            fi
+            if [ -n "$processed_file_name" ] && [ "$processed_file_name" != "null" ]; then
+                PROCESSED_FILES+=("$processed_file_name")
+            fi
+        done < "$PROCESSED_LOG_FILE"
+    else
+        echo "処理済み記録ファイルは空です。"
+    fi
 fi
 echo "処理済みファイルリストを読み込みました。件数: ${#PROCESSED_FILES[@]}"
 
 
 # --- 音声ファイルの検索 ---
-echo "指定されたパスから音声ファイルを検索します: $MOUNTED_DEVICE_PATH"
+echo "指定されたパスから音声ファイルを検索します: $SEARCH_PATH"
 echo "検索拡張子 (配列): ${TARGET_EXTENSIONS_ARRAY[@]}"
 
-find_args=("$MOUNTED_DEVICE_PATH")
-# config.shで定義された配列を直接展開してfind_argsに追加
-# find_args+=(${TARGET_EXTENSIONS_ARRAY[@]}) # この行は不要になる
+echo "findコマンド実行前に5秒待機します..."
+sleep 5
+
+find_args=("$SEARCH_PATH")
 
 echo "実行するfindコマンドのパス部分: $find_args[1]"
 print -lr -- "実行するfindコマンドの述語部分 (TARGET_EXTENSIONS_ARRAY):" "${TARGET_EXTENSIONS_ARRAY[@]}"
 
 AUDIO_FILES=()
-# findコマンドの標準エラー出力を確認するために一時的にリダイレクトを外すか、エラーも表示するようにする
-# MOUNTED_DEVICE_PATH と TARGET_EXTENSIONS_ARRAY を直接findコマンドに渡す
-find_output_and_error=$(find "$find_args[1]" "${TARGET_EXTENSIONS_ARRAY[@]}" -type f -print0 2>&1)
+find_stderr_output="" # findの標準エラー出力を格納する変数
+# findの標準エラー出力をキャプチャする
+# zshでのプロセス置換と変数代入の確実な方法として一時ファイルを使うことも考えられるが、まずは直接試みる
+# findの標準出力を取得し、標準エラーはキャプチャして別途表示
+find_output_stdout=$(find "$find_args[1]" -type f \
+    \( "${TARGET_EXTENSIONS_ARRAY[@]}" \) \
+    -not -name '._*' \
+    -print0 2> >(find_stderr_output=$(cat); echo "$find_stderr_output" >&2) ) # stderrをキャプチャしつつ、ターミナルのログにも出す
 find_exit_code=$?
-echo "Find command exit code: $find_exit_code" # デバッグ出力追加
 
-if [ $find_exit_code -ne 0 ]; then
-    echo "Find command error: $find_output_and_error" >&2
+echo "Find command exit code: $find_exit_code"
+
+if [ $find_exit_code -ne 0 ]; then # find_stderr_output のチェックは削除。終了コードのみで判断。
+    echo "エラー: findコマンドの実行に失敗しました。終了コード: $find_exit_code。パス: $find_args[1]" >&2
+    if [ -n "$find_stderr_output" ] && [[ "$find_stderr_output" != *"Permission denied"* ]] && [[ "$find_stderr_output" != *"Operation not permitted"* ]]; then
+        # Permission denied 以外のエラーメッセージがあれば表示 (Permission deniedはよく出るので抑制)
+        echo "Find command stderr: $find_stderr_output" >&2
+    fi
+    if [ ! -d "$find_args[1]" ]; then # find失敗の原因がディレクトリ不在か確認
+        echo "エラー: 検索対象ディレクトリが存在しません: $find_args[1]" >&2
+    fi
+    exit 1 # findが失敗したら終了
 fi
 
-while IFS= read -r -d $'\0' file; do
-    AUDIO_FILES+=("$file")
-done <<< "$find_output_and_error" # findの標準出力のみを読み込む
-
+# findの標準出力からファイルリストを読み込む
+if [ -n "$find_output_stdout" ]; then
+  while IFS= read -r -d $'\0' file; do
+      if [ -n "$file" ]; then # 空のファイル名が紛れ込まないように
+          AUDIO_FILES+=("$file")
+      fi
+  done <<< "$find_output_stdout"
+else
+  echo "findコマンドの標準出力は空でした（対象ファイルなし、またはエラー）。"
+  # find_exit_codeが0でもファイルが見つからない場合は正常終了
+fi
 
 echo "検出された音声ファイル (AUDIO_FILES配列):"
 for f in "${AUDIO_FILES[@]}"; do echo "  - $f"; done

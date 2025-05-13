@@ -20,8 +20,13 @@ graph TD
 ```
 
 1.  **デバイス検出 (macOS):** `launchd`などを利用し、指定されたボリューム名を持つUSBデバイスのマウントを監視します。
+    * スクリプト実行に必要な環境変数（例: `GOOGLE_API_KEY`）は事前に設定されている必要があります。また、安定実行のために `launchd` の設定で適切なキー（例: `SessionCreate`, `StandardInPath`）を検討することがあります。
 2.  **ファイル移動 (zsh):** `file_mover.sh`がトリガーされ、マウントされたデバイスから指定された音声ファイル（wav, mp3, m4a）をローカルの指定フォルダに移動します。
+    * 設定ファイル (`config.sh`) から、音声ファイルが格納されているUSBデバイス内のサブディレクトリ名 (`VOICE_FILES_SUBDIR`) を読み込み、検索対象をそのサブディレクトリに限定します。
+    * `find` コマンド実行前に数秒間の待機 (`sleep`) を挟み、マウント直後のファイルシステムへのアクセス安定性を向上させます。
+    * `find` コマンドの検索条件では、拡張子指定部分を `\\( ... \\)` で囲み、ファイルタイプ条件 (`-type f`) が正しく適用されるようにします。また、拡張子は大文字・小文字を区別せずに検索します (`-iname`)。
 3.  **文字起こし・要約 (Python):** `file_mover.sh`が移動した各音声ファイルに対して、`transcribe_summarize.py`を呼び出します。このPythonスクリプトはGemini APIと通信し、文字起こしと要約を実行します。
+    * 環境変数 `GOOGLE_API_KEY` が設定されている必要があります。
 4.  **出力 (Python):** `transcribe_summarize.py`は、要約結果をMarkdown形式でローカルの指定フォルダに保存します。
 
 ### 3. 主要機能
@@ -33,15 +38,18 @@ graph TD
     * マウントされたデバイスのパス。
     * 設定ファイル（監視対象のレコーダー名、移動先フォルダパス、処理対象拡張子、処理済み記録ファイルパス）。
 * **処理:**
-    1.  設定ファイルから処理済み記録ファイルパス (`PROCESSED_LOG_FILE`) を読み込みます。
-    2.  マウントされたデバイス内を探索し、指定された拡張子（`.wav`, `.mp3`, `.m4a`）を持つ音声ファイルを検出します。
-    3.  検出された各音声ファイルについて、処理済み記録ファイル（JSONL）を参照し、既に処理済み（同じファイル名が記録されている）か確認します。
+    1.  設定ファイル (`config.sh`) から各種設定値（処理済み記録ファイルパス `PROCESSED_LOG_FILE`、音声ファイルが格納されているサブディレクトリ名 `VOICE_FILES_SUBDIR` など）を読み込みます。
+    2.  決定された検索パス（例: `/Volumes/RECORDER/RECORD`）が利用可能になるまで待機します。
+    3.  マウント直後のファイルシステム安定化のため、数秒間待機 (`sleep`) します。
+    4.  検索パス内を探索し、設定ファイルで指定された拡張子（`.wav`, `.mp3`, `.m4a`、大文字・小文字区別なし）を持つ音声ファイルを検出します。この際、`find` コマンドの条件式は適切にグループ化されます。
+    5.  検出された各音声ファイルについて、処理済み記録ファイル（JSONL）を参照し、既に処理済み（同じファイル名が記録されている）か確認します。
         * 処理済みの場合はスキップし、次のファイルに進みます。
-    4.  未処理の場合、検出された音声ファイルを、設定ファイルで指定されたローカルの移動先フォルダに`mv`コマンドで移動します。
-    5.  移動が成功した各ファイルに対して、`transcribe_summarize.py`スクリプトを呼び出し、ファイルパス、Markdown出力先フォルダパス、要約プロンプトファイルパス、処理済み記録ファイルパスを引数として渡します。
-    * 例: `python3 /path/to/transcribe_summarize.py "/path/to/moved/audio/file.m4a" "/path/to/markdown_output/" "/path/to/prompt.txt" "/path/to/processed_log.jsonl"`
+    6.  未処理の場合、検出された音声ファイルを、設定ファイルで指定されたローカルの移動先フォルダに`mv`コマンドで移動します。
+    7.  移動が成功した各ファイルに対して、`transcribe_summarize.py`スクリプトを呼び出し、ファイルパス、Markdown出力先フォルダパス、要約プロンプトファイルパス、処理済み記録ファイルパスを引数として渡します。
+    * 例: `python3 [PYTHON_SCRIPT_PATH] "[AUDIO_FILE_PATH]" "[MARKDOWN_OUTPUT_DIR]" "[SUMMARY_PROMPT_FILE]" "[PROCESSED_LOG_FILE]"`
 * **設定項目:**
     * `RECORDER_NAME`: 監視対象のボイスレコーダーのボリューム名 (例: "IC RECORDER")
+    * `VOICE_FILES_SUBDIR`: (追加) 音声ファイルが格納されているUSBデバイス内のサブディレクトリ名 (例: "RECORD")。空の場合はマウントポイント直下を検索。
     * `AUDIO_DEST_DIR`: 音声ファイルの移動先ローカルフォルダパス (例: "audio/")
     * `PYTHON_SCRIPT_PATH`: `transcribe_summarize.py`のフルパス (例: "script/transcribe_summarize.py")
     * `OUTPUT_DIR`: Markdownファイルの出力先フォルダパス (例: "debug_outputs/summaries/")
@@ -52,7 +60,7 @@ graph TD
 
 * **入力:**
     * zshスクリプトから渡される音声ファイルのフルパス。
-    * 環境変数または設定ファイルから読み込むGemini APIキー。
+    * 環境変数として渡されるGemini APIキー (`GOOGLE_API_KEY`)。
     * zshスクリプトから渡されるMarkdownファイルの出力先フォルダパス (例: `debug_outputs/summaries/`)。
     * 要約プロンプトを記述したテキストファイルのパス（設定ファイル経由で渡される）。
     * zshスクリプトから渡される処理済み記録ファイル(JSONL)のパス。
@@ -115,6 +123,10 @@ zshスクリプト (`file_mover.sh`) が読み込む設定ファイルの例で�
 # 監視するボイスレコーダーのボリューム名（Macでマウントされたときの名前）
 RECORDER_NAME="IC RECORDER"
 
+# (追加) 音声ファイルが格納されているUSBデバイス内のサブディレクトリ名 (例: "RECORD", "VOICE" など)
+# 指定しない場合は空文字列 "" にするとマウントポイント直下を検索します。
+VOICE_FILES_SUBDIR="RECORD"
+
 # 音声ファイルを移動する先のローカルディレクトリ
 AUDIO_DEST_DIR="./audio"
 
@@ -130,22 +142,21 @@ SUMMARY_PROMPT_FILE_PATH="./prompt/summary_prompt.txt"
 # 処理済みファイルを記録するJSONLファイルのパス
 PROCESSED_LOG_FILE="./debug_outputs/processed_log.jsonl"
 
-# 処理対象の拡張子 (スペース区切り) - findコマンドで使用
-TARGET_EXTENSIONS="-name '*.wav' -o -name '*.mp3' -o -name '*.m4a'"
+# 処理対象の拡張子 (zsh配列形式、file_mover.sh内でfindコマンドの条件として使用)
+# -iname で大文字・小文字を区別しない
+TARGET_EXTENSIONS_ARRAY=(-iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a')
 
 # --- ここまで設定 ---
 ```
 
 ### 5. 実装上の注意点
 
-* **APIキー管理:** `GOOGLE_API_KEY` は環境変数として設定するか、安全な方法で管理してください。スクリプト内に直接書き込まないでください。
-* **エラーハンドリング:** 各ステップ（ファイル移動、API呼び出し、ファイル書き込み）で基本的なエラーハンドリング（失敗時のログ出力など）を追加することが望ましいです。
+* **APIキー管理:** `GOOGLE_API_KEY` は環境変数として設定することを推奨します。スクリプトファイル内に直接キーを書き込まないでください。
+* **エラーハンドリング:** 各ステップ（ファイル移動、API呼び出し、ファイル書き込み）で基本的なエラーハンドリング（失敗時のログ出力など）を追加することが望ましいです。`file_mover.sh` では `find` コマンドのエラー出力を一部抑制し、必要な情報のみをログに出力するようにしています。
 * **依存関係:** Pythonスクリプト実行環境には、必要なライブラリ (`google-generativeai` 等) がインストールされている必要があります。
-* `launchd`設定:** macOSの`launchd`エージェントを設定し、指定したボリューム名がマウントされたときに`file_mover.sh`が実行されるように構成する必要があります。
+* **`launchd`設定:** macOSの`launchd`エージェントを設定し、指定したボリューム名がマウントされたときに`file_mover.sh`が実行されるように構成する必要があります。
 * **ファイルパス:** スクリプト内でファイルパスを扱う際は、スペース等を含む可能性を考慮し、適切にクォーテーション(`"`)で囲んでください。
 * **冪等性:** `file_mover.sh`は、処理済み記録ファイル（JSONL形式）を参照し、各音声ファイルが既に処理されていないかを確認します。記録されている場合は処理をスキップすることで、同じファイルが誤って複数回処理されることを防ぎます。`transcribe_summarize.py`は処理完了後、このJSONLファイルにエントリを追加します。
-    * JSONLエントリ例: `{"source_audio": "filename.m4a", "output_markdown": "filename.md", "processed_at": "YYYY-MM-DDTHH:MM:SSZ", "status": "success"}`
-* **JSONLファイル:** 処理済み記録ファイルは、1行に1つのJSONオブジェクトが記録されるJSON Lines形式で保存されます。これにより、追記が容易になります。
 
 ### 6. ワークフロー
 

@@ -1,0 +1,23 @@
+. (AppLaud)
+├── .git/ (git repository files)
+├── .gitignore
+├── README.md
+├── .tmp_chunks/
+│   └── sample_chunks/ 
+├── debug/
+│   ├── dummy_usb/
+│   │   └── sample.wav
+│   ├── processed_audio/
+│   │   └── .gitkeep
+│   └── summaries/
+│       └── .gitkeep
+├── document/
+│   ├── project.md
+│   ├── task.md
+│   └── tree.txt
+├── prompt/
+│   └── summary_prompt.txt
+└── script/
+    └── config.sh
+
+9 directories, 8 files

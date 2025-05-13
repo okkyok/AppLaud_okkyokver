@@ -1,11 +1,21 @@
+# Temporary files
 debug_outputs/find_results.txt
-*.wav
-*.mp3
-*.m4a
-document/tree.txt
-document/task.md
-script/config.sh
-debug
-
-# Temporary chunk files
 .tmp_chunks/
+
+# Processed files and sensitive information
+debug/processed_audio/
+debug/summaries/
+debug/processed_log.jsonl
+# script/config.sh # Uncomment if you want to ignore local config changes
+
+# Example audio files in dummy_usb should NOT be ignored
+# but other audio files (e.g. in AUDIO_DEST_DIR if it's outside debug/processed_audio)
+# might need specific rules if they are not intended to be committed.
+# For now, keeping general audio extensions commented out.
+# *.wav
+# *.mp3
+# *.m4a
+
+# Documents - typically should be version controlled
+# document/tree.txt
+# document/task.md

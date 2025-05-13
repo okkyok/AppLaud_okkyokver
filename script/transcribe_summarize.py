@@ -23,7 +23,7 @@ def generate_filename_from_summary(model, summary_text):
         f"以下の要約内容に最も適した、簡潔で分かりやすいファイル名を提案してください。"
         f"ファイル名は英語のアルファベット(小文字)、数字、アンダースコア、ハイフンのみを使用し、"
         f"最大{MAX_FILENAME_LENGTH}文字程度で、拡張子は含めないでください。"
-        f"例: project_meeting_notes, important_discussion_points, technical_overview_2024\n\n"
+        f"例: ○○株式会社商談, 幾何学講義, お問い合わせ電話対応\n\n"
         f"要約内容:\n{summary_text[:1000]}"
         f"\n\n提案ファイル名:"
     )
