@@ -1,0 +1,8 @@
+debug_outputs/find_results.txt
+*.wav
+*.mp3
+*.m4a
+document/tree.txt
+document/task.md
+script/config.sh
+debug
