@@ -80,6 +80,12 @@ AppLaudは、USBボイスレコーダーをMacに接続した際に、音声フ�
     *   **動作確認とログ:**
         *   ログは `.plist` ファイル内で指定したパス（デフォルトでは `/tmp/com.example.applaud.filemover.stdout.log` および `stderr.log`）に出力されます。問題が発生した場合はこれらのログファイルを確認してください。
         *   Console.app (`アプリケーション > ユーティリティ > コンソール`) でも `launchd` やスクリプトからのログを確認できる場合があります。
+        *   **tailコマンドによるリアルタイム監視例:**
+            ```bash
+            tail -f /tmp/com.example.applaud.filemover.stdout.log
+            tail -f /tmp/com.example.applaud.filemover.stderr.log
+            ```
+        *   ログファイルの内容をリアルタイムで確認したい場合に便利です。
     *   **アンロード (停止):**
         *   `launchd` エージェントの動作を停止（アンロード）するには、以下のコマンドを実行します。
             ```bash
@@ -96,7 +102,7 @@ AppLaudは、USBボイスレコーダーをMacに接続した際に、音声フ�
 2.  設定したボイスレコーダーをMacにUSB接続します。
 3.  自動的に処理が開始され、`config.sh` で指定した `MARKDOWN_OUTPUT_DIR` に要約Markdownファイルが生成されます。
 4.  処理済みの音声ファイルは `AUDIO_DEST_DIR` に移動されます。
-5.  処理のログは `PROCESSED_LOG_FILE` (デフォルト: `debug_outputs/processed_log.jsonl`) に記録されます。
+5.  処理のログは `PROCESSED_LOG_FILE` (デフォルト: `debug/processed_log.jsonl`) に記録されます。
 
 ## 注意事項
 
