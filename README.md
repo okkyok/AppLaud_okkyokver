@@ -10,11 +10,10 @@ AppLaudは、USBボイスレコーダーをMacに接続した際に、音声フ�
 *   **AIによる文字起こしと要約:** Gemini APIを利用して、音声ファイルの文字起こしと要約を高精度で行います。
 *   **Markdown形式での保存:** 要約結果をMarkdownファイルとして、整理された形式で保存します。ファイル名は日付と内容に基づき自動生成されます。
 *   **長時間音声対応:** 20分を超える音声ファイルは自動的に分割処理され、APIの制限に対応しつつ、途切れることのない文字起こし結果を得られます。
-*   **処理済みファイルの管理:** 処理済みのファイルは記録され、重複処理を防ぎます。
 
 ## システム構成要素
 
-*   **`file_mover.sh` (zshスクリプト):** USBデバイスの監視、音声ファイルの検出と移動、Pythonスクリプトの呼び出しを行います。
+*   **`file_mover.sh` (zshスクリプト):** USBデバイスの監視、音声ファイルの検出と移動、Pythonスクリプトの呼び出しを行います。全ての検出された音声ファイルを毎回必ず移動し、Pythonスクリプトを呼び出します。
 *   **`transcribe_summarize.py` (Pythonスクリプト):** Gemini APIとの連携、音声ファイルの文字起こし、要約、Markdownファイル生成、処理記録を行います。
 *   **`config.sh` (設定ファイル):** ボイスレコーダーの名称、各種フォルダパス、処理対象の拡張子などを設定します。
 *   **`launchd` (macOS):** USBデバイス接続をトリガーとして `file_mover.sh` を実行します。 (ユーザーによる設定が必要です)
@@ -64,7 +63,7 @@ AppLaudは、USBボイスレコーダーをMacに接続した際に、音声フ�
     *   **手順:**
         1.  テンプレートファイルを `~/Library/LaunchAgents/` ディレクトリにコピーします。
             ```bash
-            cp document/com.example.applaud.filemover.plist ~/Library/LaunchAgents/
+            cp script/com.example.applaud.filemover.plist ~/Library/LaunchAgents/
             ```
         2.  コピーした `~/Library/LaunchAgents/com.example.applaud.filemover.plist` をテキストエディタで開きます。
         3.  ファイル内の以下のプレースホルダーを、ご自身の環境に合わせて修正してください。

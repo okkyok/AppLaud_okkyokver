@@ -115,7 +115,22 @@ def transcribe_audio(model, audio_file_path, temp_chunk_dir_path):
     duration_ms = len(audio)
     print(f"Audio duration: {duration_ms / 1000 / 60:.2f} minutes")
 
+    # --- 短い音声用キャッシュファイルパス ---
+    short_transcription_cache = None
+    if temp_chunk_dir_path is not None:
+        short_transcription_cache = temp_chunk_dir_path / "full_transcription.txt"
+    else:
+        # fallback: use audio file dir
+        short_transcription_cache = pathlib.Path(audio_file_path).parent / (
+            pathlib.Path(audio_file_path).stem + "_transcription.txt"
+        )
+
     if duration_ms <= CHUNK_MAX_DURATION_MS:
+        # キャッシュがあれば再利用
+        if short_transcription_cache.exists():
+            print(f"Found cached transcription: {short_transcription_cache}")
+            with open(short_transcription_cache, "r", encoding="utf-8") as f:
+                return f.read()
         print("Audio is short enough, transcribing directly.")
         print(f"Uploading file: {audio_file_path}...")
         audio_file_full = genai.upload_file(path=audio_file_path)
@@ -128,7 +143,15 @@ def transcribe_audio(model, audio_file_path, temp_chunk_dir_path):
         print(f"Deleting uploaded file from API: {audio_file_full.name}")
         genai.delete_file(audio_file_full.name)
         if response.candidates and response.candidates[0].content.parts:
-            return response.candidates[0].content.parts[0].text
+            transcription = response.candidates[0].content.parts[0].text
+            # キャッシュとして保存
+            try:
+                with open(short_transcription_cache, "w", encoding="utf-8") as f:
+                    f.write(transcription)
+                print(f"Transcription cached to: {short_transcription_cache}")
+            except Exception as e:
+                print(f"Warning: Failed to cache transcription: {e}")
+            return transcription
         else:
             raise ValueError(
                 "Direct transcription failed or returned an empty response."
@@ -297,9 +320,6 @@ def main():
     output_markdown_filename = None
 
     # Define a specific temporary directory for this audio file's chunks
-    # This directory will only be cleaned up on full success
-    # temp_base_dir = pathlib.Path(tempfile.gettempdir()) # System's temp dir
-    # For more predictable location within project, can use: (ensure .gitignore includes './.tmp_chunks/')
     temp_base_dir = pathlib.Path(".").resolve() / ".tmp_chunks"
     temp_chunk_processing_dir = temp_base_dir / f"{original_audio_filename_stem}_chunks"
 
@@ -307,7 +327,6 @@ def main():
 
     try:
         # Check duration to decide if temp_chunk_processing_dir is needed
-        # This is a bit redundant as transcribe_audio also checks, but helps manage dir creation
         audio_for_duration_check = AudioSegment.from_file(args.audio_file_path)
         if len(audio_for_duration_check) > CHUNK_MAX_DURATION_MS:
             temp_chunk_processing_dir.mkdir(parents=True, exist_ok=True)
@@ -317,35 +336,53 @@ def main():
         with open(args.summary_prompt_file_path, "r", encoding="utf-8") as f:
             prompt_template = f.read()
 
-        # Pass the specific temp dir to transcribe_audio if it's a long file
-        transcription = transcribe_audio(
-            model,
-            args.audio_file_path,
-            temp_chunk_processing_dir if cleanup_temp_dir_on_success else None,
-        )
+        # --- 文字起こしキャッシュの再利用 ---
+        transcription = None
+        try:
+            transcription = transcribe_audio(
+                model,
+                args.audio_file_path,
+                temp_chunk_processing_dir if cleanup_temp_dir_on_success else None,
+            )
+        except Exception as e:
+            print(f"Error during transcription: {e}")
+            log_processed_file(
+                args.processed_log_file_path,
+                original_audio_filename,
+                None,
+                "transcribe_failure",
+                str(e),
+            )
+            raise  # 以降の処理は行わずexceptでログ
 
-        summary = summarize_text(model, transcription, prompt_template)
-
-        # Generate filename from summary
-        suggested_filename_base = generate_filename_from_summary(model, summary)
-        sanitized_filename_base = sanitize_filename(suggested_filename_base)
-
-        output_markdown_filename = save_markdown(
-            summary, args.markdown_output_dir, sanitized_filename_base
-        )
-
-        log_processed_file(
-            args.processed_log_file_path,
-            original_audio_filename,
-            output_markdown_filename,
-            "success",
-        )
-        print("Processing successful.")
-
-        # If all successful, and temp dir was used, clean it up
-        # if cleanup_temp_dir_on_success and temp_chunk_processing_dir.exists():
-        #     print(f"Cleaning up temporary directory: {temp_chunk_processing_dir}")
-        #     shutil.rmtree(temp_chunk_processing_dir)
+        try:
+            summary = summarize_text(model, transcription, prompt_template)
+            # Generate filename from summary
+            suggested_filename_base = generate_filename_from_summary(model, summary)
+            sanitized_filename_base = sanitize_filename(suggested_filename_base)
+            output_markdown_filename = save_markdown(
+                summary, args.markdown_output_dir, sanitized_filename_base
+            )
+            log_processed_file(
+                args.processed_log_file_path,
+                original_audio_filename,
+                output_markdown_filename,
+                "summary_success",
+            )
+            print("Processing successful.")
+        except Exception as e:
+            error_msg = f"Error summarizing {original_audio_filename}: {e}"
+            print(error_msg)
+            log_processed_file(
+                args.processed_log_file_path,
+                original_audio_filename,
+                output_markdown_filename,
+                "summary_failure",
+                str(e),
+            )
+            print(
+                "Temporary chunk files (if any) will be kept for next run due to error."
+            )
 
     except Exception as e:
         error_msg = f"Error processing {original_audio_filename}: {e}"
