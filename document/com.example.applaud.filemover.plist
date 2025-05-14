@@ -7,7 +7,8 @@
     <key>ProgramArguments</key>
     <array>
         <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/file_mover.sh</string>
-        <string>/Volumes/YOUR_RECORDER_NAME</string>
+        <string>--config</string>
+        <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/config.sh</string>
     </array>
     <key>RunAtLoad</key>
     <false/>
@@ -23,8 +24,6 @@
     <dict>
         <key>PATH</key>
         <string>/bin:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin</string>
-        <key>GOOGLE_API_KEY</key>
-        <string>YOUR_GOOGLE_API_KEY</string>
     </dict>
     <key>WorkingDirectory</key>
     <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script</string>

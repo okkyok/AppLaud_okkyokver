@@ -47,19 +47,32 @@ AppLaudは、USBボイスレコーダーをMacに接続した際に、音声フ�
 5.  **`launchd` エージェントの設定 (macOSユーザー向け):**
     *   USBデバイス接続時に `file_mover.sh` を自動実行するために、`launchd` のエージェントを設定する必要があります。
     *   本リポジトリの `document/com.example.applaud.filemover.plist` は、このための設定ファイルテンプレートです。
+    *   **重要: 設定はすべて `script/config.sh` で一元管理してください。APIキーやパスは `.plist` には直接書かず、`config.sh` にまとめて記述します。**
+    *   `.plist` の `ProgramArguments` で `--config /ABSOLUTE/PATH/TO/YOUR/AppLaud/script/config.sh` を渡すことで、設定ファイルの場所を明示的に指定できます。
+    *   **file_mover.sh 側の設定ファイル読込例:**
+        ```zsh
+        #!/bin/zsh
+        # 設定ファイルのパスを引数で受け取る
+        if [[ "$1" == "--config" && -n "$2" ]]; then
+          source "$2"
+          shift 2
+        else
+          source "./config.sh"
+        fi
+        # ...以降、環境変数として設定値が利用可能...
+        ```
     *   **手順:**
-        1.  テンプレートファイルを `~/Library/LaunchAgents/` ディレクトリにコピーします。ファイル名は `com.example.applaud.filemover.plist` のままか、任意の名前に変更可能です（例: `com.yourusername.applaud.filemover.plist`）。
+        1.  テンプレートファイルを `~/Library/LaunchAgents/` ディレクトリにコピーします。
             ```bash
             cp document/com.example.applaud.filemover.plist ~/Library/LaunchAgents/
             ```
         2.  コピーした `~/Library/LaunchAgents/com.example.applaud.filemover.plist` をテキストエディタで開きます。
         3.  ファイル内の以下のプレースホルダーを、ご自身の環境に合わせて修正してください。
             *   `/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/file_mover.sh`: `file_mover.sh` スクリプトへの絶対パス。
-            *   `/Volumes/YOUR_RECORDER_NAME`: `WatchPaths` と `ProgramArguments` 内。`config.sh` の `RECORDER_NAME` で設定したボイスレコーダーのボリューム名（例: `/Volumes/IC RECORDER`）。
-            *   `YOUR_GOOGLE_API_KEY`: `EnvironmentVariables` 内。取得したGoogle Gemini APIキー。
-            *   `/ABSOLUTE/PATH/TO/YOUR/AppLaud/script`: `WorkingDirectory`。`file_mover.sh` が存在するディレクトリへの絶対パス。
+            *   `/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/config.sh`: `config.sh` への絶対パス。
+            *   `/Volumes/YOUR_RECORDER_NAME`: `WatchPaths` 内。`config.sh` の `RECORDER_NAME` で設定したボイスレコーダーのボリューム名（例: `/Volumes/IC RECORDER`）。
             *   ログパス (`StandardOutPath`, `StandardErrorPath`) も必要に応じて変更してください（デフォルトは `/tmp/` 以下に出力されます）。
-        4.  編集後、`launchd` エージェントを読み込みます。ターミナルで以下のコマンドを実行してください（ファイル名を変更した場合は適宜読み替えてください）。
+        4.  編集後、`launchd` エージェントを読み込みます。
             ```bash
             launchctl load ~/Library/LaunchAgents/com.example.applaud.filemover.plist
             ```
