@@ -2,36 +2,47 @@
 
 # --- 設定（すべてexportで環境変数化）---
 
+# --- TODO: Setting ---
 # Google Gemini APIキー
 export GOOGLE_API_KEY="YOUR_GOOGLE_API_KEY"
 
+# --- TODO: Setting ---
 # 監視するボイスレコーダーのボリューム名
 export RECORDER_NAME="RECORDER"
 
+# --- TODO: Setting ---
 # 音声ファイルが格納されているUSBデバイス内のサブディレクトリ名
 export VOICE_FILES_SUBDIR="RECORD"
 
+# --- TODO: Setting ---
 # 音声ファイルを移動する先のローカルディレクトリ
 export AUDIO_DEST_DIR="/path/to/audio"
 
+# --- TODO: Setting ---
 # Markdown要約ファイルを出力する先のローカルディレクトリ
 export MARKDOWN_OUTPUT_DIR="/path/to/markdown_output"
 
+# --- TODO: Setting ---
 # 実行するPythonスクリプトのパス
 export PYTHON_SCRIPT_PATH="./transcribe_summarize.py"
 
+# --- TODO: Setting ---
 # 要約時に使用するプロンプトファイルのパス
 export SUMMARY_PROMPT_FILE_PATH="../prompt/summary_prompt.txt"
 
+# --- TODO: Setting ---
 # 処理済みファイルを記録するJSONLファイルのパス
 export PROCESSED_LOG_FILE="../debug/processed_log.jsonl"
 
+# --- TODO: Setting ---
 # 処理対象の拡張子 (zsh配列形式で定義)
 export TARGET_EXTENSIONS_ARRAY=(-iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a')
 
+# --- TODO: Setting ---
 # ステータス管理ファイル
 export STATUS_FILE_PATH="/path/to/processing_status.jsonl"
 
+# --- TODO: Setting ---
 # プロンプトテンプレートファイル
 export PROMPT_TEMPLATE_PATH="../prompt/template.txt"
 
