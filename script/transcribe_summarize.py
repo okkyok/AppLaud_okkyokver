@@ -42,23 +42,23 @@ def generate_filename_from_summary(model, summary_text):
 
 
 def sanitize_filename(filename_suggestion, max_length=MAX_FILENAME_LENGTH):
-    """Sanitizes a filename suggestion to be filesystem-friendly."""
+    """日本語（全角文字）も許容しつつ、ファイル名として不適切な記号のみ除去する。"""
     if not filename_suggestion:
         return "untitled_summary"
 
-    # Convert to lowercase
-    text = filename_suggestion.lower()
-    # Replace spaces and common problematic characters with underscore
-    text = re.sub(r'[\s\\/:*?"<>|]+', "_", text)
-    # Keep only alphanumeric, underscore, hyphen
-    text = re.sub(r"[^a-z0-9_\-]", "", text)
-    # Replace multiple underscores/hyphens with a single one
+    # 先頭・末尾の空白除去
+    text = filename_suggestion.strip()
+    # 許可する文字: 日本語（全角）、英数字、アンダースコア、ハイフン
+    # 除去する: \\/:*?"<>| などファイル名に使えない記号
+    text = re.sub(r'[\\/:*?"<>|]', "", text)
+    # 空白はアンダースコアに
+    text = re.sub(r"[\s]+", "_", text)
+    # 連続アンダースコア・ハイフンを1つに
     text = re.sub(r"[_\-]{2,}", "_", text)
-    # Remove leading/trailing underscores/hyphens
-    text = text.strip("_-")
-    # Truncate to max_length
+    # 先頭・末尾のアンダースコア・ハイフン除去
+    text = text.strip("_- ")
+    # 長さ制限
     text = text[:max_length]
-    # If somehow empty after sanitization, return default
     if not text:
         return "untitled_summary"
     return text
@@ -238,15 +238,14 @@ def summarize_text(model, text, prompt_template):
 
 
 def save_markdown(text, output_dir, generated_filename_base):
-    """Saves the text as a Markdown file in the output directory using a generated filename base.
-    If a file with the same name exists, appends a count (_1, _2, ...) to avoid overwriting.
-    """
+    """日本語タイトルも許容し、YYYYMMDD_タイトル.md 形式でMarkdownを保存する。既存ファイルがあれば連番を付与。"""
+    # 日付+タイトルのファイル名例: 20240601_幾何学講義.md
     date_prefix = datetime.datetime.now().strftime("%Y%m%d")
     base_name = f"{date_prefix}_{generated_filename_base}"
     markdown_filename = f"{base_name}.md"
     output_path = pathlib.Path(output_dir) / markdown_filename
     count = 1
-    # Check for existing files and increment count if needed
+    # 既存ファイルがあれば連番を付与
     while output_path.exists():
         markdown_filename = f"{base_name}_{count}.md"
         output_path = pathlib.Path(output_dir) / markdown_filename
@@ -255,7 +254,7 @@ def save_markdown(text, output_dir, generated_filename_base):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(text)
     print(f"Markdown saved to: {output_path}")
-    return markdown_filename  # Return the actual filename used
+    return markdown_filename  # 実際に使われたファイル名を返す
 
 
 def log_processed_file(
