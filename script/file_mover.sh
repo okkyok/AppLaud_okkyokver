@@ -152,34 +152,36 @@ for audio_file_full_path in "${AUDIO_FILES[@]}"; do
     destination_path="${AUDIO_DEST_DIR}/${audio_file_name}"
     echo "ファイルを移動します: $audio_file_full_path -> $destination_path"
     mv -f "$audio_file_full_path" "$destination_path"
-    if [ $? -eq 0 ]; then
-        echo "ファイルの移動に成功しました。"
-
-        # --- Pythonスクリプトの呼び出し ---
-        abs_python_script_path="$(cd "${SCRIPT_DIR}" && realpath "${PYTHON_SCRIPT_PATH}")"
-        abs_summary_prompt_file_path="$(cd "${SCRIPT_DIR}" && realpath "${SUMMARY_PROMPT_FILE_PATH}")"
-        abs_processed_log_file_path="$(cd "${SCRIPT_DIR}" && realpath "${PROCESSED_LOG_FILE}")"
-        abs_markdown_output_dir="$(cd "${SCRIPT_DIR}" && realpath "${MARKDOWN_OUTPUT_DIR}")"
-        abs_audio_dest_dir_for_python="$(cd "${SCRIPT_DIR}" && realpath "${AUDIO_DEST_DIR}")"
-        moved_audio_file_path_for_python="${abs_audio_dest_dir_for_python}/${audio_file_name}"
-
-        echo "Pythonスクリプトを呼び出します: $abs_python_script_path"
-        python3 "$abs_python_script_path" \
-            --audio_file_path "$moved_audio_file_path_for_python" \
-            --markdown_output_dir "$abs_markdown_output_dir" \
-            --summary_prompt_file_path "$abs_summary_prompt_file_path" \
-            --processed_log_file_path "$abs_processed_log_file_path"
-        
-        python_exit_code=$?
-        if [ $python_exit_code -eq 0 ]; then
-            echo "Pythonスクリプトの実行に成功しました。"
-        else
-            echo "エラー: Pythonスクリプトの実行に失敗しました。(終了コード: $python_exit_code)" >&2
-        fi
-    else
+    if [ $? -ne 0 ]; then
         echo "エラー: ファイルの移動に失敗しました: $audio_file_full_path" >&2
+        # 移動失敗時もPythonスクリプトは呼び出されるため、ここではexitしない
+    else
+        echo "ファイルの移動に成功しました。"
     fi
-done
+done # 個別ファイル移動ループの終了
+
+# --- Pythonスクリプトの呼び出し (AUDIO_DEST_DIR を対象とする) ---
+# 個別ファイルごとではなく、一度だけ呼び出すように変更
+# AUDIO_FILES 配列の要素数に関わらず、常にPythonスクリプトを呼び出す
+abs_python_script_path="$(cd "${SCRIPT_DIR}" && realpath "${PYTHON_SCRIPT_PATH}")"
+abs_summary_prompt_file_path="$(cd "${SCRIPT_DIR}" && realpath "${SUMMARY_PROMPT_FILE_PATH}")"
+abs_processed_log_file_path="$(cd "${SCRIPT_DIR}" && realpath "${PROCESSED_LOG_FILE}")"
+abs_markdown_output_dir="$(cd "${SCRIPT_DIR}" && realpath "${MARKDOWN_OUTPUT_DIR}")"
+abs_audio_dest_dir_for_python="$(cd "${SCRIPT_DIR}" && realpath "${AUDIO_DEST_DIR}")"
+
+echo "Pythonスクリプトを呼び出します: $abs_python_script_path (対象ディレクトリ: $abs_audio_dest_dir_for_python)"
+python3 "$abs_python_script_path" \
+    --audio_processing_dir "$abs_audio_dest_dir_for_python" \
+    --markdown_output_dir "$abs_markdown_output_dir" \
+    --summary_prompt_file_path "$abs_summary_prompt_file_path" \
+    --processed_log_file_path "$abs_processed_log_file_path"
+
+python_exit_code=$?
+if [ $python_exit_code -eq 0 ]; then
+    echo "Pythonスクリプトの実行に成功しました。"
+else
+    echo "エラー: Pythonスクリプトの実行に失敗しました。(終了コード: $python_exit_code)" >&2
+fi
 
 echo "\n全ての処理が完了しました。"
 exit 0 

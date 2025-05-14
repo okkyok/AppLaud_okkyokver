@@ -20,12 +20,12 @@ def generate_filename_from_summary(model, summary_text):
     """Generates a filename suggestion from the summary text using Gemini API."""
     print("Generating filename from summary...")
     prompt = (
-        f"以下の要約内容に最も適した、簡潔で分かりやすいファイル名を提案してください。"
-        f"ファイル名は英語のアルファベット(小文字)、数字、アンダースコア、ハイフンのみを使用し、"
-        f"最大{MAX_FILENAME_LENGTH}文字程度で、拡張子は含めないでください。"
-        f"例: ○○株式会社商談, 幾何学講義, お問い合わせ電話対応\n\n"
+        f"以下の要約内容の最も重要なトピックを反映した、具体的で短い日本語のファイル名を**一つだけ作成**してください。"
+        f"ファイル名は、{MAX_FILENAME_LENGTH}文字以内の**一つの連続した文字列**とし、日本語、英数字、アンダースコア、ハイフンのみを使用してください。"
+        f"拡張子は含めないでください。\n\n"
+        f"例: AI戦略会議議事録\n\n"
         f"要約内容:\n{summary_text[:1000]}"
-        f"\n\n提案ファイル名:"
+        f"\n\n作成ファイル名:"
     )
     try:
         response = model.generate_content(prompt)
@@ -277,10 +277,12 @@ def log_processed_file(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transcribe and summarize an audio file."
+        description="Transcribe and summarize audio files in a directory."
     )
     parser.add_argument(
-        "--audio_file_path", required=True, help="Path to the audio file."
+        "--audio_processing_dir",
+        required=True,
+        help="Directory containing audio files to process.",
     )
     parser.add_argument(
         "--markdown_output_dir",
@@ -300,10 +302,10 @@ def main():
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         print("Error: GOOGLE_API_KEY environment variable not set.")
-        if args.processed_log_file_path and args.audio_file_path:
+        if args.processed_log_file_path and args.audio_processing_dir:
             log_processed_file(
                 args.processed_log_file_path,
-                pathlib.Path(args.audio_file_path).name,
+                pathlib.Path(args.audio_processing_dir).name,
                 None,
                 "failure",
                 "GOOGLE_API_KEY not set",
@@ -313,87 +315,161 @@ def main():
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("gemini-1.5-flash")  # Using recommended model
 
-    original_audio_path = pathlib.Path(args.audio_file_path)
-    original_audio_filename = original_audio_path.name
-    original_audio_filename_stem = original_audio_path.stem
-    output_markdown_filename = None
+    processing_dir = pathlib.Path(args.audio_processing_dir)
+    markdown_output_dir = pathlib.Path(args.markdown_output_dir)
+    summary_prompt_file_path = pathlib.Path(args.summary_prompt_file_path)
+    processed_log_file_path = pathlib.Path(args.processed_log_file_path)
 
-    # Define a specific temporary directory for this audio file's chunks
-    temp_base_dir = pathlib.Path(".").resolve() / ".tmp_chunks"
-    temp_chunk_processing_dir = temp_base_dir / f"{original_audio_filename_stem}_chunks"
+    done_dir = processing_dir / "done"
+    done_dir.mkdir(parents=True, exist_ok=True)
 
-    cleanup_temp_dir_on_success = False  # Flag to control cleanup
+    # Process each audio file in the directory
+    audio_extensions = [".wav", ".mp3", ".m4a"]
+    audio_files_to_process = [
+        f
+        for f in processing_dir.iterdir()
+        if f.is_file() and f.suffix.lower() in audio_extensions
+    ]
 
-    try:
-        # Check duration to decide if temp_chunk_processing_dir is needed
-        audio_for_duration_check = AudioSegment.from_file(args.audio_file_path)
-        if len(audio_for_duration_check) > CHUNK_MAX_DURATION_MS:
-            temp_chunk_processing_dir.mkdir(parents=True, exist_ok=True)
-            cleanup_temp_dir_on_success = True  # Mark for cleanup only if it was used
-            print(f"Using temporary directory for chunks: {temp_chunk_processing_dir}")
+    if not audio_files_to_process:
+        print(
+            f"No audio files found in {processing_dir} with extensions {audio_extensions}"
+        )
+        return
 
-        with open(args.summary_prompt_file_path, "r", encoding="utf-8") as f:
-            prompt_template = f.read()
+    print(
+        f"Found {len(audio_files_to_process)} audio files to process in {processing_dir}"
+    )
 
-        # --- 文字起こしキャッシュの再利用 ---
-        transcription = None
+    for audio_file_path in audio_files_to_process:
+        original_audio_path = audio_file_path
+        original_audio_filename = original_audio_path.name
+        original_audio_filename_stem = original_audio_path.stem
+        output_markdown_filename = None
+        print(f"\n--- Processing file: {original_audio_filename} ---")
+
+        # Define a specific temporary directory for this audio file's chunks
+        temp_base_dir = pathlib.Path(".").resolve() / ".tmp_chunks"
+        # Ensure unique temp dir name, even if filenames are similar across different original dirs
+        # (though in this script, all files come from the same processing_dir)
+        temp_chunk_processing_dir = (
+            temp_base_dir / f"{original_audio_filename_stem}_chunks"
+        )
+
+        cleanup_temp_dir_on_success = False  # Flag to control cleanup
+
         try:
-            transcription = transcribe_audio(
-                model,
-                args.audio_file_path,
-                temp_chunk_processing_dir if cleanup_temp_dir_on_success else None,
-            )
-        except Exception as e:
-            print(f"Error during transcription: {e}")
-            log_processed_file(
-                args.processed_log_file_path,
-                original_audio_filename,
-                None,
-                "transcribe_failure",
-                str(e),
-            )
-            raise  # 以降の処理は行わずexceptでログ
+            # Check duration to decide if temp_chunk_processing_dir is needed
+            audio_for_duration_check = AudioSegment.from_file(original_audio_path)
+            if len(audio_for_duration_check) > CHUNK_MAX_DURATION_MS:
+                temp_chunk_processing_dir.mkdir(parents=True, exist_ok=True)
+                cleanup_temp_dir_on_success = (
+                    True  # Mark for cleanup only if it was used
+                )
+                print(
+                    f"Using temporary directory for chunks: {temp_chunk_processing_dir}"
+                )
 
-        try:
-            summary = summarize_text(model, transcription, prompt_template)
-            # Generate filename from summary
-            suggested_filename_base = generate_filename_from_summary(model, summary)
-            sanitized_filename_base = sanitize_filename(suggested_filename_base)
-            output_markdown_filename = save_markdown(
-                summary, args.markdown_output_dir, sanitized_filename_base
-            )
-            log_processed_file(
-                args.processed_log_file_path,
-                original_audio_filename,
-                output_markdown_filename,
-                "summary_success",
-            )
-            print("Processing successful.")
+            with open(summary_prompt_file_path, "r", encoding="utf-8") as f:
+                prompt_template = f.read()
+
+            transcription = None
+            try:
+                transcription = transcribe_audio(
+                    model,
+                    original_audio_path,
+                    temp_chunk_processing_dir if cleanup_temp_dir_on_success else None,
+                )
+            except Exception as e:
+                print(f"Error during transcription for {original_audio_filename}: {e}")
+                log_processed_file(
+                    processed_log_file_path,
+                    original_audio_filename,
+                    None,
+                    "transcribe_failure",
+                    str(e),
+                )
+                # Continue to the next file if transcription fails
+                continue
+
+            try:
+                summary = summarize_text(model, transcription, prompt_template)
+                suggested_filename_base = generate_filename_from_summary(model, summary)
+                sanitized_filename_base = sanitize_filename(suggested_filename_base)
+                output_markdown_filename = save_markdown(
+                    summary, markdown_output_dir, sanitized_filename_base
+                )
+                log_processed_file(
+                    processed_log_file_path,
+                    original_audio_filename,
+                    output_markdown_filename,
+                    "summary_success",
+                )
+                print(f"Processing successful for {original_audio_filename}.")
+
+                # Move processed file to done directory
+                try:
+                    shutil.move(
+                        str(original_audio_path),
+                        str(done_dir / original_audio_filename),
+                    )
+                    print(f"Moved {original_audio_filename} to {done_dir}")
+                except Exception as e:
+                    print(f"Error moving {original_audio_filename} to {done_dir}: {e}")
+                    # Log this failure separately if needed, or add to existing log
+                    log_processed_file(
+                        processed_log_file_path,
+                        original_audio_filename,
+                        output_markdown_filename,  # Markdown might have been created
+                        "move_to_done_failure",
+                        f"Failed to move to {done_dir}: {str(e)}",
+                    )
+
+                # Clean up temp chunk dir if it was used and successful
+                if cleanup_temp_dir_on_success and temp_chunk_processing_dir.exists():
+                    try:
+                        shutil.rmtree(temp_chunk_processing_dir)
+                        print(
+                            f"Successfully removed temporary chunk directory: {temp_chunk_processing_dir}"
+                        )
+                    except Exception as e:
+                        print(
+                            f"Warning: Failed to remove temporary chunk directory {temp_chunk_processing_dir}: {e}"
+                        )
+
+            except Exception as e:
+                error_msg = f"Error summarizing {original_audio_filename}: {e}"
+                print(error_msg)
+                log_processed_file(
+                    processed_log_file_path,
+                    original_audio_filename,
+                    output_markdown_filename,  # Markdown might have been created or not
+                    "summary_failure",
+                    str(e),
+                )
+                print(
+                    f"Temporary chunk files (if any) for {original_audio_filename} will be kept for next run due to error."
+                )
+                # Continue to the next file
+                continue
+
         except Exception as e:
-            error_msg = f"Error summarizing {original_audio_filename}: {e}"
+            error_msg = f"Unhandled error processing {original_audio_filename}: {e}"
             print(error_msg)
             log_processed_file(
-                args.processed_log_file_path,
+                processed_log_file_path,
                 original_audio_filename,
-                output_markdown_filename,
-                "summary_failure",
+                output_markdown_filename,  # Markdown might have been created or not
+                "failure",
                 str(e),
             )
             print(
-                "Temporary chunk files (if any) will be kept for next run due to error."
+                f"Temporary chunk files (if any) for {original_audio_filename} will be kept for next run due to error."
             )
+            # Continue to the next file
+            continue
 
-    except Exception as e:
-        error_msg = f"Error processing {original_audio_filename}: {e}"
-        print(error_msg)
-        log_processed_file(
-            args.processed_log_file_path,
-            original_audio_filename,
-            output_markdown_filename,
-            "failure",
-            str(e),
-        )
-        print("Temporary chunk files (if any) will be kept for next run due to error.")
+    print("\nAll files processed.")
 
 
 if __name__ == "__main__":
