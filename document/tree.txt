@@ -2,13 +2,15 @@
 ├── .git/ (git repository files)
 ├── .gitignore
 ├── README.md
+├── .DS_Store
 ├── .tmp_chunks/
 │   └── sample_chunks/ 
 ├── debug/
 │   ├── dummy_usb/
-│   │   └── sample.wav
 │   ├── processed_audio/
 │   │   └── .gitkeep
+│   ├── processed_log.jsonl
+│   ├── .DS_Store
 │   └── summaries/
 │       └── .gitkeep
 ├── document/
@@ -16,8 +18,12 @@
 │   ├── task.md
 │   └── tree.txt
 ├── prompt/
-│   └── summary_prompt.txt
+│   ├── summary_prompt.txt
+│   └── template.txt
 └── script/
-    └── config.sh
+    ├── com.example.applaud.filemover.plist
+    ├── config.sh
+    ├── transcribe_summarize.py
+    └── file_mover.sh
 
-9 directories, 8 files
+9 directories, 12 files

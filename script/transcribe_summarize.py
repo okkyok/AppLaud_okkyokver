@@ -215,11 +215,19 @@ def summarize_text(model, text, prompt_template):
 
 
 def save_markdown(text, output_dir, generated_filename_base):
-    """Saves the text as a Markdown file in the output directory using a generated filename base."""
+    """Saves the text as a Markdown file in the output directory using a generated filename base.
+    If a file with the same name exists, appends a count (_1, _2, ...) to avoid overwriting.
+    """
     date_prefix = datetime.datetime.now().strftime("%Y%m%d")
-    # Use the AI generated and sanitized filename base
-    markdown_filename = f"{date_prefix}_{generated_filename_base}.md"
+    base_name = f"{date_prefix}_{generated_filename_base}"
+    markdown_filename = f"{base_name}.md"
     output_path = pathlib.Path(output_dir) / markdown_filename
+    count = 1
+    # Check for existing files and increment count if needed
+    while output_path.exists():
+        markdown_filename = f"{base_name}_{count}.md"
+        output_path = pathlib.Path(output_dir) / markdown_filename
+        count += 1
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(text)
