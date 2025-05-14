@@ -237,10 +237,10 @@ def summarize_text(model, text, prompt_template):
         raise ValueError("Summarization failed or returned an empty response.")
 
 
-def save_markdown(text, output_dir, generated_filename_base):
+def save_markdown(text, output_dir, generated_filename_base, file_date):
     """日本語タイトルも許容し、YYYYMMDD_タイトル.md 形式でMarkdownを保存する。既存ファイルがあれば連番を付与。"""
     # 日付+タイトルのファイル名例: 20240601_幾何学講義.md
-    date_prefix = datetime.datetime.now().strftime("%Y%m%d")
+    date_prefix = file_date.strftime("%Y%m%d")
     base_name = f"{date_prefix}_{generated_filename_base}"
     markdown_filename = f"{base_name}.md"
     output_path = pathlib.Path(output_dir) / markdown_filename
@@ -396,8 +396,18 @@ def main():
                 summary = summarize_text(model, transcription, prompt_template)
                 suggested_filename_base = generate_filename_from_summary(model, summary)
                 sanitized_filename_base = sanitize_filename(suggested_filename_base)
+
+                # Get audio file creation date
+                file_creation_timestamp = original_audio_path.stat().st_ctime
+                file_creation_date = datetime.datetime.fromtimestamp(
+                    file_creation_timestamp
+                )
+
                 output_markdown_filename = save_markdown(
-                    summary, markdown_output_dir, sanitized_filename_base
+                    summary,
+                    markdown_output_dir,
+                    sanitized_filename_base,
+                    file_creation_date,
                 )
                 log_processed_file(
                     processed_log_file_path,
