@@ -11,6 +11,16 @@
 # 4. ファイルを指定ディレクトリに移動する。
 # 5. Pythonスクリプトを呼び出して文字起こしと要約を行う。
 
+# Python 3.12仮想環境を有効化
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+VENV_PATH="${SCRIPT_DIR}/../venv"
+if [ -f "${VENV_PATH}/bin/activate" ]; then
+    source "${VENV_PATH}/bin/activate"
+    echo "Python仮想環境を有効化しました: ${VENV_PATH}"
+else
+    echo "警告: Python仮想環境が見つかりません: ${VENV_PATH}"
+fi
+
 echo "引数: $@"
 
 # --- 柔軟な引数パース（--configとマウントパスの順不同対応） ---
@@ -170,6 +180,8 @@ abs_markdown_output_dir="$(cd "${SCRIPT_DIR}" && realpath "${MARKDOWN_OUTPUT_DIR
 abs_audio_dest_dir_for_python="$(cd "${SCRIPT_DIR}" && realpath "${AUDIO_DEST_DIR}")"
 
 echo "Pythonスクリプトを呼び出します: $abs_python_script_path (対象ディレクトリ: $abs_audio_dest_dir_for_python)"
+# 仮想環境のPythonを使用
+source "${SCRIPT_DIR}/../venv/bin/activate"
 python3 "$abs_python_script_path" \
     --audio_processing_dir "$abs_audio_dest_dir_for_python" \
     --markdown_output_dir "$abs_markdown_output_dir" \

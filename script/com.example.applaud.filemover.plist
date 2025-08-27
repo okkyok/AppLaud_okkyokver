@@ -6,15 +6,16 @@
     <string>com.example.applaud.filemover</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/file_mover.sh</string>
+        <string>/Users/okky_1_2/dev/AppLaud/script/file_mover.sh</string>
+        <string>/Volumes/V56_Howabo</string>
         <string>--config</string>
-        <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/config.sh</string>
+        <string>/Users/okky_1_2/dev/AppLaud/script/config.sh</string>
     </array>
     <key>RunAtLoad</key>
     <false/>
     <key>WatchPaths</key>
     <array>
-        <string>/Volumes/YOUR_RECORDER_NAME</string>
+        <string>/Volumes/V56_Howabo</string>
     </array>
     <key>StandardOutPath</key>
     <string>/tmp/com.example.applaud.filemover.stdout.log</string>
@@ -26,7 +27,7 @@
         <string>/bin:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin</string>
     </dict>
     <key>WorkingDirectory</key>
-    <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script</string>
+    <string>/Users/okky_1_2/dev/AppLaud/script</string>
     <key>SessionCreate</key>
     <true/>
     <key>StandardInPath</key>

@@ -3,10 +3,19 @@ debug_outputs/find_results.txt
 .tmp_chunks/
 
 # Processed files and sensitive information
-debug/processed_audio/
-debug/summaries/
-debug/processed_log.jsonl
-# script/config.sh # Uncomment if you want to ignore local config changes
+debug/
+# Configuration files with sensitive information
+script/config.sh
+
+# Python cache
+__pycache__/
+script/__pycache__/
+
+# macOS launchd plist
+script/com.example.applaud.filemover.plist
+
+# Python virtual environment
+venv/
 
 # Example audio files in dummy_usb should NOT be ignored
 # but other audio files (e.g. in AUDIO_DEST_DIR if it's outside debug/processed_audio)

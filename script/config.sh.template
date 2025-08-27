@@ -4,7 +4,7 @@
 
 # --- TODO: Setting ---
 # Google Gemini APIキー
-export GOOGLE_API_KEY="AIzaSyD3UIOiHKRx2aalBJIZVy49u8vLN5ARyMs"
+export GOOGLE_API_KEY="YOUR_GOOGLE_API_KEY_HERE"
 
 # --- TODO: Setting ---
 # 監視するボイスレコーダーのボリューム名
@@ -16,11 +16,11 @@ export VOICE_FILES_SUBDIR="RECORD"
 
 # --- TODO: Setting ---
 # 音声ファイルを移動する先のローカルディレクトリ
-export AUDIO_DEST_DIR="/Users/okky_1_2/Desktop/Voice2Text"
+export AUDIO_DEST_DIR="/Users/YOUR_USERNAME/Desktop/Voice2Text"
 
 # --- TODO: Setting ---
 # Markdown要約ファイルを出力する先のローカルディレクトリ
-export MARKDOWN_OUTPUT_DIR="/Users/okky_1_2/Library/Mobile Documents/com~apple~CloudDocs/my_obsidian/💕Shihokky/🎙️Rec/V56"
+export MARKDOWN_OUTPUT_DIR="/Users/YOUR_USERNAME/Library/Mobile Documents/com~apple~CloudDocs/my_obsidian/💕Shihokky/🎙️Rec/V56"
 
 # --- TODO: Setting ---
 # 実行するPythonスクリプトのパス
@@ -31,29 +31,27 @@ export PYTHON_SCRIPT_PATH="./transcribe_summarize.py"
 export SUMMARY_PROMPT_FILE_PATH="../prompt/summary_prompt.txt"
 
 # --- TODO: Setting ---
-# 処理済みファイルを記録するJSONLファイルのパス
+# 処理済みログファイルのパス
 export PROCESSED_LOG_FILE="../debug/processed_log.jsonl"
 
 # --- TODO: Setting ---
-# 処理対象の拡張子 (zsh配列形式で定義)
-export TARGET_EXTENSIONS_ARRAY=(-iname '*.wav' -o -iname '*.WAV' -o -iname '*.mp3' -o -iname '*.MP3' -o -iname '*.m4a' -o -iname '*.M4A')
+# 対象とする音声ファイルの拡張子（find用配列）
+TARGET_EXTENSIONS_ARRAY=(
+    '-iname' '*.wav' '-o'
+    '-iname' '*.WAV' '-o'
+    '-iname' '*.mp3' '-o'
+    '-iname' '*.MP3' '-o'
+    '-iname' '*.m4a' '-o'
+    '-iname' '*.M4A'
+)
+export TARGET_EXTENSIONS_ARRAY
 
 # --- TODO: Setting ---
-# ステータス管理ファイル
-export STATUS_FILE_PATH="/path/to/processing_status.jsonl"
-
-# --- TODO: Setting ---
-# プロンプトテンプレートファイル
-export PROMPT_TEMPLATE_PATH="../prompt/template.txt"
-
-# --- TODO: Setting ---
-# 録音ファイル名から日時を抽出するためのパターン設定
-# 例: "REC_20240601_143025.wav" -> "%Y%m%d_%H%M%S"
-# 例: "20240601143025.m4a" -> "%Y%m%d%H%M%S"
-# 例: "Voice_2024-06-01_14-30-25.mp3" -> "%Y-%m-%d_%H-%M-%S"
+# 録音ファイル名のパターン（strftimeフォーマット）
+# 例: "REC_%Y%m%d_%H%M%S" -> "REC_20240601_143025.wav"
+# 例: "V%Y%m%d-%H%M%S" -> "V20240601-143025.wav"
 export RECORDING_FILENAME_PATTERN="V%Y%m%d-%H%M%S"
 
-# --- TODO: Setting ---
 # 音声再生速度設定（API料金削減のため）
 # 例: 1.0 = 等速, 1.5 = 1.5倍速, 2.0 = 2倍速, 3.0 = 3倍速
 # 高速化により文字起こし時間とAPI料金を削減できますが、音質が変わります
@@ -84,15 +82,14 @@ export MARKDOWN_FILENAME_FORMAT="{date}_{title}"
 # --- TODO: Setting ---
 # Obsidianデイリーノート設定
 # デイリーノートのベースディレクトリパス
-export OBSIDIAN_DAILY_NOTES_DIR="/Users/okky_1_2/Library/Mobile Documents/com~apple~CloudDocs/my_obsidian/🔒️Private/📅Daily Note"
+export OBSIDIAN_DAILY_NOTES_DIR="/Users/YOUR_USERNAME/Library/Mobile Documents/com~apple~CloudDocs/my_obsidian/🔒️Private/📅Daily Note"
 
 # デイリーノートのファイル名パターン（strftimeフォーマット + 特別なプレースホルダー）
 # 例: "%Y-%m-%d.md" -> "2025-08-15.md"
 # 例: "%Y年%m月%d日.md" -> "2025年08月15日.md"
-# 例: "📅%Y-%m-%d(%J).md" -> "📅2025-08-15(金).md" (%J = 日本語曜日)
-# デイリーノートのファイル名パターン（特別なプレースホルダー %J 対応）
+# 例: "📅%Y-%m-%d(%J).md" -> "📅2025-08-15(金).md"
+# 特別なプレースホルダー: %J = 日本語曜日（月火水木金土日）
 export DAILY_NOTE_FILENAME_PATTERN="📅%Y-%m-%d(%J).md"
-
 
 # 議事録リンクを追加する見出し名
 export DAILY_NOTE_HEADING="## 🎙️ トーク記録（Rec）"
@@ -142,7 +139,3 @@ echo "-------------------------"
 # echo "RECORDER_NAME: $RECORDER_NAME"
 # echo "AUDIO_DEST_DIR: $AUDIO_DEST_DIR"
 # echo "MARKDOWN_OUTPUT_DIR: $MARKDOWN_OUTPUT_DIR"
-# echo "PYTHON_SCRIPT_PATH: $PYTHON_SCRIPT_PATH"
-# echo "SEARCH_PATTERNS: ${SEARCH_PATTERNS[@]}"
-# echo "STATUS_FILE_PATH: $STATUS_FILE_PATH"
-# echo "PROMPT_TEMPLATE_PATH: $PROMPT_TEMPLATE_PATH" 

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.example.applaud.filemover</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/file_mover.sh</string>
+        <string>/Volumes/YOUR_RECORDER_NAME</string>
+        <string>--config</string>
+        <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script/config.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>WatchPaths</key>
+    <array>
+        <string>/Volumes/YOUR_RECORDER_NAME</string>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/tmp/com.example.applaud.filemover.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/com.example.applaud.filemover.stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/bin:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/ABSOLUTE/PATH/TO/YOUR/AppLaud/script</string>
+    <key>SessionCreate</key>
+    <true/>
+    <key>StandardInPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>
+
+<!-- 
+使用方法:
+1. このファイルを ~/Library/LaunchAgents/ にコピーします:
+   cp script/com.example.applaud.filemover.plist.template ~/Library/LaunchAgents/com.example.applaud.filemover.plist
+
+2. コピーしたファイルを編集し、以下のプレースホルダーを実際の値に置き換えてください:
+   - /ABSOLUTE/PATH/TO/YOUR/AppLaud: AppLaudプロジェクトの絶対パス
+   - YOUR_RECORDER_NAME: config.shで設定したRECORDER_NAMEの値
+
+3. launchdエージェントを読み込みます:
+   launchctl load ~/Library/LaunchAgents/com.example.applaud.filemover.plist
+
+4. 停止する場合:
+   launchctl unload ~/Library/LaunchAgents/com.example.applaud.filemover.plist
+-->
